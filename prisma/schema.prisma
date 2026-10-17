@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id                 String    @id @default(cuid())
+  amount             Decimal
+  currency           String    @default("USDC")
+  depositAddress     String
+  addressIndex       Int       @unique @default(autoincrement())
+  status             String    @default("PENDING") // PENDING, PAID, EXPIRED, FAILED
+  txHash             String?
+  merchantWebhookUrl String
+  webhookSecret      String
+  createdAt          DateTime  @default(now())
+  expiresAt          DateTime
+  paidAt             DateTime?
+
+  @@index([status, expiresAt])
+}
+
+model WebhookLog {
+  id             String   @id @default(cuid())
+  orderId        String
+  payload        Json
+  responseStatus Int?
+  attempt        Int
+  createdAt      DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// Webhooks reçus par /api/webhook-test (simule le serveur du marchand)
+model ReceivedWebhook {
+  id        String   @id @default(cuid())
+  payload   Json
+  signature String?
+  valid     Boolean
+  createdAt DateTime @default(now())
+}
+
+// Curseur du watcher : une seule ligne (id = "singleton")
+model WatcherState {
+  id               String   @id @default("singleton")
+  lastScannedBlock BigInt
+  updatedAt        DateTime @updatedAt
+}
