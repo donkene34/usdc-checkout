@@ -6,6 +6,16 @@ Réseau cible : **Arc Testnet** (le gas s'y paie en USDC, un seul faucet suffit 
 
 **Démo en ligne : https://usdc-checkout.vercel.app/** (testnet uniquement, aucun fonds réel)
 
+## Captures
+
+| Dashboard marchand | Page de paiement (en attente) |
+|---|---|
+| ![Dashboard](docs/dashboard.png) | ![Page de paiement](docs/checkout.png) |
+
+| Paiement détecté | Webhooks reçus (signature valide) |
+|---|---|
+| ![Paiement détecté](docs/checkout-paid.png) | ![Logs webhook](docs/webhook-logs.png) |
+
 ## Stack
 
 - Next.js 14 (App Router), TypeScript, Tailwind CSS
