@@ -4,6 +4,8 @@ Système de paiement en **USDC** : un marchand crée une commande, reçoit une a
 
 Réseau cible : **Arc Testnet** (le gas s'y paie en USDC, un seul faucet suffit pour tester).
 
+**Démo en ligne : https://usdc-checkout.vercel.app/** (testnet uniquement, aucun fonds réel)
+
 ## Stack
 
 - Next.js 14 (App Router), TypeScript, Tailwind CSS
@@ -76,11 +78,21 @@ Le watcher garde un curseur (`WatcherState`) du dernier bloc scanné, cherche le
 
 La route `/api/cron/watch` fait un passage du watcher. Elle exige l'en-tête `Authorization: Bearer <CRON_SECRET>` et accepte GET et POST.
 
-- **Vercel Cron** : `vercel.json` déclare un appel quotidien (`0 0 * * *`), le maximum du plan gratuit (Hobby). Vercel envoie automatiquement l'en-tête `Authorization` si la variable `CRON_SECRET` est définie. Une fréquence plus élevée demande un plan payant.
-- **Gratuit et plus fréquent** : un service externe comme [cron-job.org](https://cron-job.org) (toutes les minutes) qui appelle `POST https://TON-APP.vercel.app/api/cron/watch` avec l'en-tête `Authorization: Bearer <CRON_SECRET>`.
-- **GitHub Actions** (sans autre compte) : le fichier `.github/workflows/watch.yml` appelle la route toutes les 5 minutes. Dans le dépôt GitHub, ajoute deux secrets (Settings → Secrets and variables → Actions) : `APP_URL` (par exemple `https://TON-APP.vercel.app`, sans `/` final) et `CRON_SECRET` (la même valeur que sur Vercel). Les passages peuvent être retardés de quelques minutes, et GitHub désactive les workflows planifiés d'un dépôt inactif depuis 60 jours.
-- **Depuis ton PC** : `npm run watch` avec le `DATABASE_URL` de la base de production fonctionne aussi, tant que le PC est allumé.
-- Un paiement n'est détecté qu'au passage suivant : avec un cron à la minute, compte jusqu'à une minute de délai.
+**Méthode utilisée en production : GitHub Actions** (gratuit, sans autre compte). Le fichier `.github/workflows/watch.yml` appelle la route toutes les 5 minutes (`POST /api/cron/watch`). Dans le dépôt GitHub, ajoute deux secrets (Settings → Secrets and variables → Actions) :
+
+| Secret | Valeur |
+|---|---|
+| `APP_URL` | URL de l'app, par exemple `https://TON-APP.vercel.app` (sans `/` final) |
+| `CRON_SECRET` | La même valeur que la variable `CRON_SECRET` sur Vercel |
+
+Le workflow peut aussi être lancé à la main : onglet Actions → Watcher USDC → Run workflow. Les passages planifiés peuvent être retardés de quelques minutes, et GitHub désactive les workflows planifiés d'un dépôt inactif depuis 60 jours.
+
+Alternatives :
+- **Vercel Cron** : `vercel.json` déclare un appel quotidien (`0 0 * * *`), le maximum du plan gratuit (Hobby). Vercel envoie automatiquement l'en-tête `Authorization` si `CRON_SECRET` est défini. Une fréquence plus élevée demande un plan payant.
+- **Service externe** (ex. cron-job.org) qui appelle `POST https://TON-APP.vercel.app/api/cron/watch` avec l'en-tête `Authorization: Bearer <CRON_SECRET>`.
+- **Depuis ton PC** : `npm run watch` avec le `DATABASE_URL` de la base de production, tant que le PC est allumé.
+
+Un paiement n'est détecté qu'au passage suivant : avec GitHub Actions, compte jusqu'à 5 à 10 minutes de délai.
 
 ## Déploiement (Vercel + Neon, gratuit)
 
@@ -88,7 +100,7 @@ La route `/api/cron/watch` fait un passage du watcher. Elle exige l'en-tête `Au
 2. Importe le projet sur [vercel.com](https://vercel.com) ; le build lance `prisma generate` automatiquement (script `postinstall`).
 3. Dans les paramètres du projet, ajoute les variables : `DATABASE_URL`, `HD_WALLET_MNEMONIC`, `USDC_CONTRACT_ADDRESS`, `RPC_URL`, `CRON_SECRET`. Utilise un mnemonic **différent** de celui de ton `.env` local.
 4. Applique les migrations sur la base de production : `npx prisma migrate deploy` (avec `DATABASE_URL` pointant vers elle).
-5. Déploie, puis configure le cron externe (section précédente).
+5. Déploie, puis configure le cron GitHub Actions (section précédente).
 
 Les URLs de webhook en `localhost` ne sont pas joignables depuis Vercel : en production, le marchand de test est `https://TON-APP.vercel.app/api/webhook-test` (préremplie dans le formulaire).
 
@@ -193,9 +205,17 @@ scripts/                             watch, simulate-payment, inspect-tx
 ## Limites connues
 
 - **Pas de balayage des fonds** : les USDC restent sur les adresses de dépôt, contrôlées par le mnemonic. Aucun transfert automatique vers un wallet marchand.
-- **Pas d'authentification** sur le dashboard, la création de commande et `/api/webhook-test` : à protéger avant toute mise en ligne publique.
+- **Pas d'authentification** sur le dashboard, la création de commande et `/api/webhook-test` : choix assumé pour une démo sur testnet, à protéger avant tout usage avec de vrais fonds.
 - **Un seul transfert doit couvrir le montant** : deux paiements partiels ne s'additionnent pas.
 - Un paiement arrivé juste après l'expiration, mais avant le prochain passage du watcher, est accepté.
 - `merchantWebhookUrl` n'est pas filtré : en production, le serveur pourrait être poussé à appeler une adresse interne (SSRF).
-- Le cron gratuit de Vercel ne passe qu'une fois par jour ; utilise un cron externe pour une détection rapide.
+- La détection dépend du cron GitHub Actions (toutes les 5 minutes, parfois retardé) ; le cron gratuit de Vercel ne passe qu'une fois par jour.
 - Sur Neon en production, il est conseillé d'utiliser la connexion poolée pour l'application et la connexion directe pour les migrations (`directUrl` dans `schema.prisma`).
+
+## Améliorations prévues
+
+- [ ] **Sweep des fonds** : transférer automatiquement les USDC reçus vers un wallet marchand.
+- [ ] **Authentification** : mot de passe (ou clé API) sur le dashboard et la création de commande.
+- [ ] **Filtre SSRF** sur `merchantWebhookUrl` : refuser les adresses internes et privées.
+- [ ] **Paiements partiels** : additionner plusieurs transferts vers la même adresse.
+- [ ] **Détection plus rapide** : cron plus fréquent ou watcher dédié (hors plan gratuit).
