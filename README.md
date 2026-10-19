@@ -78,6 +78,8 @@ La route `/api/cron/watch` fait un passage du watcher. Elle exige l'en-tête `Au
 
 - **Vercel Cron** : `vercel.json` déclare un appel quotidien (`0 0 * * *`), le maximum du plan gratuit (Hobby). Vercel envoie automatiquement l'en-tête `Authorization` si la variable `CRON_SECRET` est définie. Une fréquence plus élevée demande un plan payant.
 - **Gratuit et plus fréquent** : un service externe comme [cron-job.org](https://cron-job.org) (toutes les minutes) qui appelle `POST https://TON-APP.vercel.app/api/cron/watch` avec l'en-tête `Authorization: Bearer <CRON_SECRET>`.
+- **GitHub Actions** (sans autre compte) : le fichier `.github/workflows/watch.yml` appelle la route toutes les 5 minutes. Dans le dépôt GitHub, ajoute deux secrets (Settings → Secrets and variables → Actions) : `APP_URL` (par exemple `https://TON-APP.vercel.app`, sans `/` final) et `CRON_SECRET` (la même valeur que sur Vercel). Les passages peuvent être retardés de quelques minutes, et GitHub désactive les workflows planifiés d'un dépôt inactif depuis 60 jours.
+- **Depuis ton PC** : `npm run watch` avec le `DATABASE_URL` de la base de production fonctionne aussi, tant que le PC est allumé.
 - Un paiement n'est détecté qu'au passage suivant : avec un cron à la minute, compte jusqu'à une minute de délai.
 
 ## Déploiement (Vercel + Neon, gratuit)
